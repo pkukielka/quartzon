@@ -7,8 +7,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Schedule {
+    protected ProcessingDirectives processingDirectives;
     protected List<JobDetail> jobs;
     protected List<Trigger> triggers;
+
+    public ProcessingDirectives getProcessingDirectives() {
+        return processingDirectives;
+    }
+
+    public void setProcessingDirectives(ProcessingDirectives processingDirectives) {
+        this.processingDirectives = processingDirectives;
+    }
 
     public List<JobDetail> getJobs() {
         if (jobs == null) {
