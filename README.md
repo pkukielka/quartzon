@@ -3,6 +3,7 @@ quartzon
 
 Library for easy creation Quartz jobs and triggers directly from JSON
 
+
 ### Motivation
 Although Quartz supports remote communication through RMI there is no easy way to create new jobs and triggers without using Java on the client side (for example from web browser using REST API).
 Still, building your own communication channel would be quite easy job if there would be any method to serialize and deserialize Quartz objects. Unlucky, there is none.
@@ -94,4 +95,66 @@ Because there is no very good established schema for JSON we will use xsd equiva
 ```
 
 ### Usage
-_In progress_
+Quartzon is completely framework-agnostic, so you can use it with JSON library of your choice.
+
+For the purpose of this example we will use Jackson.
+
+First, we will need JSON file describing our triggers / jobs (quartz.json):
+```json
+{
+  "processingDirectives": null,
+  "jobs": [
+    {
+      "name": "testJob",
+      "group": "testGroup",
+      "description": null,
+      "jobClass": "com.pkukielka.quartzon.TestJob",
+      "durability": true,
+      "recover": null,
+      "jobDataMap": [
+
+      ]
+    }
+  ],
+  "simpleTriggers": [
+    {
+      "name": "testTrigger",
+      "group": "testGroup",
+      "description": null,
+      "jobName": "testJob",
+      "jobGroup": "testGroup",
+      "priority": null,
+      "calendarName": null,
+      "jobDataMap": [
+
+      ],
+      "startTime": 1350839825963,
+      "startTimeSecondsInFuture": null,
+      "endTime": null,
+      "misfireInstruction": null,
+      "repeatCount": 2,
+      "repeatInterval": 3
+    }
+  ],
+  "cronTriggers": [
+
+  ]
+}
+```
+
+Then generating Quartz scheduler from JSON file is pretty straightforward:
+```java
+Scheduler scheduler = new ObjectMapper().readValue(
+                          new File("quartz.json"),
+                          com.pkukielka.quartzon.Scheduler.class
+                      ).build(new StdSchedulerFactory());
+```
+
+### Roadmap
+* Finish misfire instruction handling for triggers
+* Add more tests
+* Add listeners serialization (if there will be need / enough interest in that)
+
+### Contact
+Feel free to hit me on twitter: https://twitter.com/pkukielka
+
