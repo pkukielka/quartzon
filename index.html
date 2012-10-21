@@ -126,7 +126,70 @@ Because there is no very good established schema for JSON we will use xsd equiva
 
 <h3>Usage</h3>
 
-<p><em>In progress</em></p>
+<p>Quartzon is completely framework-agnostic, so you can use it with JSON library of your choice.</p>
+
+<p>For the purpose of this example we will use Jackson.</p>
+
+<p>First, we will need JSON file describing our triggers / jobs (quartz.json):</p>
+
+<div class="highlight"><pre><span class="p">{</span>
+  <span class="nt">"processingDirectives"</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+  <span class="nt">"jobs"</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"testJob"</span><span class="p">,</span>
+      <span class="nt">"group"</span><span class="p">:</span> <span class="s2">"testGroup"</span><span class="p">,</span>
+      <span class="nt">"description"</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+      <span class="nt">"jobClass"</span><span class="p">:</span> <span class="s2">"com.pkukielka.quartzon.TestJob"</span><span class="p">,</span>
+      <span class="nt">"durability"</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
+      <span class="nt">"recover"</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+      <span class="nt">"jobDataMap"</span><span class="p">:</span> <span class="p">[</span>
+
+      <span class="p">]</span>
+    <span class="p">}</span>
+  <span class="p">],</span>
+  <span class="nt">"simpleTriggers"</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="nt">"name"</span><span class="p">:</span> <span class="s2">"testTrigger"</span><span class="p">,</span>
+      <span class="nt">"group"</span><span class="p">:</span> <span class="s2">"testGroup"</span><span class="p">,</span>
+      <span class="nt">"description"</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+      <span class="nt">"jobName"</span><span class="p">:</span> <span class="s2">"testJob"</span><span class="p">,</span>
+      <span class="nt">"jobGroup"</span><span class="p">:</span> <span class="s2">"testGroup"</span><span class="p">,</span>
+      <span class="nt">"priority"</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+      <span class="nt">"calendarName"</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+      <span class="nt">"jobDataMap"</span><span class="p">:</span> <span class="p">[</span>
+
+      <span class="p">],</span>
+      <span class="nt">"startTime"</span><span class="p">:</span> <span class="mi">1350839825963</span><span class="p">,</span>
+      <span class="nt">"startTimeSecondsInFuture"</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+      <span class="nt">"endTime"</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+      <span class="nt">"misfireInstruction"</span><span class="p">:</span> <span class="kc">null</span><span class="p">,</span>
+      <span class="nt">"repeatCount"</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+      <span class="nt">"repeatInterval"</span><span class="p">:</span> <span class="mi">3</span>
+    <span class="p">}</span>
+  <span class="p">],</span>
+  <span class="nt">"cronTriggers"</span><span class="p">:</span> <span class="p">[</span>
+
+  <span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Then generating Quartz scheduler from JSON file is pretty straightforward:</p>
+
+<div class="highlight"><pre><span class="n">Scheduler</span> <span class="n">scheduler</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ObjectMapper</span><span class="o">().</span><span class="na">readValue</span><span class="o">(</span>
+                          <span class="k">new</span> <span class="nf">File</span><span class="o">(</span><span class="s">"quartz.json"</span><span class="o">),</span>
+                          <span class="n">com</span><span class="o">.</span><span class="na">pkukielka</span><span class="o">.</span><span class="na">quartzon</span><span class="o">.</span><span class="na">Scheduler</span><span class="o">.</span><span class="na">class</span>
+                      <span class="o">).</span><span class="na">build</span><span class="o">(</span><span class="k">new</span> <span class="n">StdSchedulerFactory</span><span class="o">());</span>
+</pre></div>
+
+<h3>Roadmap</h3>
+
+<ul>
+<li>Finish misfire instruction handling for triggers</li>
+<li>Add more tests</li>
+<li>Add listeners serialization (if there will be need / enough interest in that)</li>
+</ul><h3>Contact</h3>
+
+<p>Feel free to hit me on twitter: <a href="https://twitter.com/pkukielka">https://twitter.com/pkukielka</a></p>
       </section>
       <footer>
         <p>This project is maintained by <a href="https://github.com/pkukielka">pkukielka</a></p>
