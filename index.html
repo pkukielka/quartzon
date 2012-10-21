@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Quartzon by pkukielka</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Quartzon</h1>
+        <p>Library for easy creation Quartz jobs and triggers directly from JSON</p>
+
+        <p class="view"><a href="https://github.com/pkukielka/quartzon">View the Project on GitHub <small>pkukielka/quartzon</small></a></p>
+
+
+        <ul>
+          <li><a href="https://github.com/pkukielka/quartzon/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/pkukielka/quartzon/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/pkukielka/quartzon">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h3>Motivation</h3>
+
+<p>Although Quartz supports remote communication through RMI there is no easy way to create new jobs and triggers without using Java on the client side (for example from web browser using REST API).
+Still, building your own communication channel would be quite easy job if there would be any method to serialize and deserialize Quartz objects. Unlucky, there is none.
+Quartzon is aiming to fill this gap. It allows you to describe all your jobs and triggers using JSON.
+Together with Java POJOs used for easy JSON deserialization it provides builders for automatic creation of Quartz jobs/triggers/schedulers.</p>
+
+<h3>Schema</h3>
+
+<p>Classes design and naming were highly inspired by schema of JobInitializationPlugin: <a href="http://www.quartz-scheduler.org/xml/job_scheduling_data_2_0.xsd">http://www.quartz-scheduler.org/xml/job_scheduling_data_2_0.xsd</a>. 
+However there are few differences:</p>
+
+<ul>
+<li>dashes in names are replaced with camel case convention (i.e. jobDataMap vs job-data-map)</li>
+<li>job-scheduling-data and pre-processing-commands elements are removed completely</li>
+<li>processing-directives element is moved from job-scheduling-data to schedule</li>
+</ul><p>Because there is no very good established schema for JSON we will use xsd equivalent:</p>
+
+<div class="highlight"><pre><span class="cp">&lt;?xml version="1.0" encoding="UTF-8" standalone="yes"?&gt;</span>
+<span class="nt">&lt;xs:schema</span> <span class="na">version=</span><span class="s">"1.0"</span> <span class="na">xmlns:xs=</span><span class="s">"http://www.w3.org/2001/XMLSchema"</span><span class="nt">&gt;</span>
+
+  <span class="nt">&lt;xs:complexType</span> <span class="na">name=</span><span class="s">"processingDirectives"</span><span class="nt">&gt;</span>
+    <span class="nt">&lt;xs:sequence&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"ignoreDuplicates"</span> <span class="na">type=</span><span class="s">"xs:boolean"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"overwriteExistingData"</span> <span class="na">type=</span><span class="s">"xs:boolean"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+    <span class="nt">&lt;/xs:sequence&gt;</span>
+  <span class="nt">&lt;/xs:complexType&gt;</span>
+
+  <span class="nt">&lt;xs:complexType</span> <span class="na">name=</span><span class="s">"schedule"</span><span class="nt">&gt;</span>
+    <span class="nt">&lt;xs:sequence&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"jobs"</span> <span class="na">type=</span><span class="s">"jobDetail"</span> <span class="na">nillable=</span><span class="s">"true"</span> <span class="na">minOccurs=</span><span class="s">"0"</span> <span class="na">maxOccurs=</span><span class="s">"unbounded"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"processingDirectives"</span> <span class="na">type=</span><span class="s">"processingDirectives"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"triggers"</span> <span class="na">type=</span><span class="s">"trigger"</span> <span class="na">nillable=</span><span class="s">"true"</span> <span class="na">minOccurs=</span><span class="s">"0"</span> <span class="na">maxOccurs=</span><span class="s">"unbounded"</span><span class="nt">/&gt;</span>
+    <span class="nt">&lt;/xs:sequence&gt;</span>
+  <span class="nt">&lt;/xs:complexType&gt;</span>
+
+  <span class="nt">&lt;xs:complexType</span> <span class="na">name=</span><span class="s">"jobDetail"</span><span class="nt">&gt;</span>
+    <span class="nt">&lt;xs:sequence&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"description"</span> <span class="na">type=</span><span class="s">"xs:string"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"durability"</span> <span class="na">type=</span><span class="s">"xs:boolean"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"group"</span> <span class="na">type=</span><span class="s">"xs:string"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"jobClass"</span> <span class="na">type=</span><span class="s">"xs:string"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"jobDataMap"</span> <span class="na">type=</span><span class="s">"jobDataMap"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"name"</span> <span class="na">type=</span><span class="s">"xs:string"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"recover"</span> <span class="na">type=</span><span class="s">"xs:boolean"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+    <span class="nt">&lt;/xs:sequence&gt;</span>
+  <span class="nt">&lt;/xs:complexType&gt;</span>
+
+  <span class="nt">&lt;xs:complexType</span> <span class="na">name=</span><span class="s">"jobDataMap"</span><span class="nt">&gt;</span>
+    <span class="nt">&lt;xs:sequence&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"entry"</span> <span class="na">type=</span><span class="s">"entry"</span> <span class="na">nillable=</span><span class="s">"true"</span> <span class="na">minOccurs=</span><span class="s">"0"</span> <span class="na">maxOccurs=</span><span class="s">"unbounded"</span><span class="nt">/&gt;</span>
+    <span class="nt">&lt;/xs:sequence&gt;</span>
+  <span class="nt">&lt;/xs:complexType&gt;</span>
+
+  <span class="nt">&lt;xs:complexType</span> <span class="na">name=</span><span class="s">"entry"</span><span class="nt">&gt;</span>
+    <span class="nt">&lt;xs:sequence&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"key"</span> <span class="na">type=</span><span class="s">"xs:string"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"value"</span> <span class="na">type=</span><span class="s">"xs:string"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+    <span class="nt">&lt;/xs:sequence&gt;</span>
+  <span class="nt">&lt;/xs:complexType&gt;</span>
+
+  <span class="nt">&lt;xs:complexType</span> <span class="na">name=</span><span class="s">"trigger"</span><span class="nt">&gt;</span>
+    <span class="nt">&lt;xs:sequence&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"calendarInterval"</span> <span class="na">type=</span><span class="s">"calendarIntervalTrigger"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"cron"</span> <span class="na">type=</span><span class="s">"cronTrigger"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"simple"</span> <span class="na">type=</span><span class="s">"simpleTrigger"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+    <span class="nt">&lt;/xs:sequence&gt;</span>
+  <span class="nt">&lt;/xs:complexType&gt;</span>
+
+  <span class="nt">&lt;xs:complexType</span> <span class="na">name=</span><span class="s">"calendarIntervalTrigger"</span><span class="nt">&gt;</span>
+    <span class="nt">&lt;xs:complexContent&gt;</span>
+      <span class="nt">&lt;xs:extension</span> <span class="na">base=</span><span class="s">"abstractTrigger"</span><span class="nt">&gt;</span>
+        <span class="nt">&lt;xs:sequence&gt;</span>
+          <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"misfireInstruction"</span> <span class="na">type=</span><span class="s">"xs:string"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+          <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"repeatInterval"</span> <span class="na">type=</span><span class="s">"xs:int"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+          <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"repeatIntervalUnit"</span> <span class="na">type=</span><span class="s">"xs:string"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+        <span class="nt">&lt;/xs:sequence&gt;</span>
+      <span class="nt">&lt;/xs:extension&gt;</span>
+    <span class="nt">&lt;/xs:complexContent&gt;</span>
+  <span class="nt">&lt;/xs:complexType&gt;</span>
+
+  <span class="nt">&lt;xs:complexType</span> <span class="na">name=</span><span class="s">"abstractTrigger"</span> <span class="na">abstract=</span><span class="s">"true"</span><span class="nt">&gt;</span>
+    <span class="nt">&lt;xs:sequence&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"calendarName"</span> <span class="na">type=</span><span class="s">"xs:string"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"description"</span> <span class="na">type=</span><span class="s">"xs:string"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"endTime"</span> <span class="na">type=</span><span class="s">"xs:anySimpleType"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"group"</span> <span class="na">type=</span><span class="s">"xs:string"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"jobDataMap"</span> <span class="na">type=</span><span class="s">"jobDataMap"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"jobGroup"</span> <span class="na">type=</span><span class="s">"xs:string"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"jobName"</span> <span class="na">type=</span><span class="s">"xs:string"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"name"</span> <span class="na">type=</span><span class="s">"xs:string"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"priority"</span> <span class="na">type=</span><span class="s">"xs:int"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"startTime"</span> <span class="na">type=</span><span class="s">"xs:anySimpleType"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+      <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"startTimeSecondsInFuture"</span> <span class="na">type=</span><span class="s">"xs:int"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+    <span class="nt">&lt;/xs:sequence&gt;</span>
+  <span class="nt">&lt;/xs:complexType&gt;</span>
+
+  <span class="nt">&lt;xs:complexType</span> <span class="na">name=</span><span class="s">"cronTrigger"</span><span class="nt">&gt;</span>
+    <span class="nt">&lt;xs:complexContent&gt;</span>
+      <span class="nt">&lt;xs:extension</span> <span class="na">base=</span><span class="s">"abstractTrigger"</span><span class="nt">&gt;</span>
+        <span class="nt">&lt;xs:sequence&gt;</span>
+          <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"cronExpression"</span> <span class="na">type=</span><span class="s">"xs:string"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+          <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"misfireInstruction"</span> <span class="na">type=</span><span class="s">"xs:string"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+          <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"timeZone"</span> <span class="na">type=</span><span class="s">"xs:string"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+        <span class="nt">&lt;/xs:sequence&gt;</span>
+      <span class="nt">&lt;/xs:extension&gt;</span>
+    <span class="nt">&lt;/xs:complexContent&gt;</span>
+  <span class="nt">&lt;/xs:complexType&gt;</span>
+
+  <span class="nt">&lt;xs:complexType</span> <span class="na">name=</span><span class="s">"simpleTrigger"</span><span class="nt">&gt;</span>
+    <span class="nt">&lt;xs:complexContent&gt;</span>
+      <span class="nt">&lt;xs:extension</span> <span class="na">base=</span><span class="s">"abstractTrigger"</span><span class="nt">&gt;</span>
+        <span class="nt">&lt;xs:sequence&gt;</span>
+          <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"misfireInstruction"</span> <span class="na">type=</span><span class="s">"xs:string"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+          <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"repeatCount"</span> <span class="na">type=</span><span class="s">"xs:int"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+          <span class="nt">&lt;xs:element</span> <span class="na">name=</span><span class="s">"repeatInterval"</span> <span class="na">type=</span><span class="s">"xs:int"</span> <span class="na">minOccurs=</span><span class="s">"0"</span><span class="nt">/&gt;</span>
+        <span class="nt">&lt;/xs:sequence&gt;</span>
+      <span class="nt">&lt;/xs:extension&gt;</span>
+    <span class="nt">&lt;/xs:complexContent&gt;</span>
+  <span class="nt">&lt;/xs:complexType&gt;</span>
+<span class="nt">&lt;/xs:schema&gt;</span>
+</pre></div>
+
+<h3>Usage</h3>
+
+<p><em>In progress</em></p>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/pkukielka">pkukielka</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+    
+  </body>
+</html>
