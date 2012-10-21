@@ -1,8 +1,16 @@
 package com.pkukielka.quartzon.trigger;
 
-import com.pkukielka.quartzon.job.JobDataMap;
+import com.pkukielka.quartzon.job.Entry;
+import org.quartz.DateBuilder;
+import org.quartz.Trigger;
+import org.quartz.TriggerBuilder;
 
-import javax.xml.datatype.XMLGregorianCalendar;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import static org.quartz.DateBuilder.futureDate;
+import static org.quartz.TriggerBuilder.newTrigger;
 
 public abstract class AbstractTrigger {
     protected String name;
@@ -12,10 +20,38 @@ public abstract class AbstractTrigger {
     protected String jobGroup;
     protected Integer priority;
     protected String calendarName;
-    protected JobDataMap jobDataMap;
-    protected XMLGregorianCalendar startTime;
+    protected List<Entry> jobDataMap;
+    protected Date startTime;
     protected Integer startTimeSecondsInFuture;
-    protected XMLGregorianCalendar endTime;
+    protected Date endTime;
+
+    protected TriggerBuilder<Trigger> prepareBuilder() {
+        TriggerBuilder<Trigger> triggerBuilder = newTrigger()
+                .withIdentity(getName(), getGroup())
+                .withDescription(getDescription())
+                .forJob(getJobName(), getJobGroup())
+                .modifiedByCalendar(getCalendarName());
+
+        if (getPriority() != null) {
+            triggerBuilder.withPriority(getPriority());
+        }
+
+        if (getStartTime() != null) {
+            triggerBuilder.startAt(getStartTime());
+        } else if (getStartTimeSecondsInFuture() != null) {
+            triggerBuilder.startAt(futureDate(getStartTimeSecondsInFuture(), DateBuilder.IntervalUnit.SECOND));
+        }
+
+        if (getEndTime() != null) {
+            triggerBuilder.endAt(getEndTime());
+        }
+
+        for (Entry entry : getJobDataMap()) {
+            triggerBuilder.usingJobData(entry.getKey(), entry.getValue());
+        }
+
+        return triggerBuilder;
+    }
 
     public String getName() {
         return name;
@@ -73,19 +109,23 @@ public abstract class AbstractTrigger {
         this.calendarName = calendarName;
     }
 
-    public JobDataMap getJobDataMap() {
-        return jobDataMap;
+    public List<Entry> getJobDataMap() {
+        if (jobDataMap == null) {
+            jobDataMap = new ArrayList<Entry>();
+        }
+
+        return this.jobDataMap;
     }
 
-    public void setJobDataMap(JobDataMap jobDataMap) {
+    public void setJobDataMap(List<Entry> jobDataMap) {
         this.jobDataMap = jobDataMap;
     }
 
-    public XMLGregorianCalendar getStartTime() {
+    public Date getStartTime() {
         return startTime;
     }
 
-    public void setStartTime(XMLGregorianCalendar startTime) {
+    public void setStartTime(Date startTime) {
         this.startTime = startTime;
     }
 
@@ -97,11 +137,11 @@ public abstract class AbstractTrigger {
         this.startTimeSecondsInFuture = startTimeSecondsInFuture;
     }
 
-    public XMLGregorianCalendar getEndTime() {
+    public Date getEndTime() {
         return endTime;
     }
 
-    public void setEndTime(XMLGregorianCalendar endTime) {
+    public void setEndTime(Date endTime) {
         this.endTime = endTime;
     }
 }
